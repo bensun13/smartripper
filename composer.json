@@ -1,0 +1,25 @@
+{
+  "name": "bensun13/smartripper",
+  "description": "Scrapping SmarTrip Data from WMATA website",
+  "license": "MIT",
+  "keywords": ["WMATA", "SmarTrip", "Washington", "DC"],
+  "homepage": "https://github.com/bensun13/smartripper",
+  "authors": [
+    {
+      "name": "Benjamin Sun",
+      "email": "benjamin.sun@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.6.0",
+    "guzzlehttp/guzzle": "^6.2"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "4.0.*"
+  },
+  "autoload": {
+    "psr-4": {
+      "BenSun\\Smartripper\\": "src"
+    }
+  }
+}
