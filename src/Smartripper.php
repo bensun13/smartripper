@@ -21,7 +21,7 @@ class Smartripper
 	public static $agent = 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/534.13 (KHTML, like Gecko) Chrome/9.0.597.98 Safari/534.13';
 
 	private $client;
-	private $cookie;
+	private $cookie = null;
 	private $parser;
 
 	private $view_state = null;
@@ -34,12 +34,12 @@ class Smartripper
 		$this->setPassword($password);
 
 		$this->client = new \GuzzleHttp\Client(['cookies' => true]);
-		$this->cookie = new \GuzzleHttp\Cookie\CookieJar;
+		$this->cookie = new \GuzzleHttp\Cookie\CookieJar();
 		$this->parser = new \Sunra\PhpSimple\HtmlDomParser;
 	}
 
 	public function setUpWMATACookie()	{
-		$res = $this->client->request('GET', self::$login_url, ['cookies', $this->cookie]);
+		$res = $this->client->request('GET', self::$login_url, ['cookies' => $this->cookie]);
 
 		$doc = new \DOMDocument;
 		$doc->loadHTML($res->getBody()->getContents());
@@ -52,7 +52,13 @@ class Smartripper
 	}
 
 	public function logIntoWMATA() {
-		$headers = ['referer' => self::$login_url];
+
+		$this->setUpWMATACookie();
+
+		$headers = [
+			'referer' => self::$login_url,
+			'User-Agent' => self::$agent
+		];
 
 		$data = [
 			'__CSRFTOKEN'=>$this->getCsrfToken(),
@@ -68,11 +74,15 @@ class Smartripper
 		];
 
 		$args = ['headers' => $headers,
-			'body' => http_build_query($data,'','&'),
+			'referer' => true,
+			'verify' => false,
+			'allow_redirects' => true,
+			'debug' => true,
+			#'body' => http_build_query($data,'','&'),
+			'form_params' => $data,
 			'cookies' => $this->cookie];
 
 		$res = $this->client->post(self::$login_url, $args);
-
 		return $res->getBody()->getContents();
 	}
 
