@@ -18,12 +18,46 @@ class SmartripperTest extends \PHPUnit_Framework_TestCase
 	public $ripper;
 
 	public function setUp() {
-		$this->ripper = new Smartripper();
+		$this->ripper = new Smartripper('test', 'testpassword');
 	}
 
-	public function testLogintoWMATA() {
-		$res = $this->ripper->loginIntoWMATA();
-		$this->assertEquals(true, $res);
+	public function testGetPassword() {
+		$password = $this->ripper->getPassword();
+		$this->assertEquals('testpassword', $password);
+	}
 
+	public function testLogIntoWMATA() {
+		$res = $this->ripper->logIntoWMATA();
+		$this->assertTrue((strpos($res, 'WMATA') !== false));
+	}
+
+	public function testSetUpWMATACookie() {
+		$res = $this->ripper->setupWMATACookie();
+		$this->assertEquals(200, $res);
+	}
+
+	public function testGetUsername() {
+		$username = $this->ripper->getUsername();
+		$this->assertEquals('test', $username);
+	}
+
+	public function testSetUsername() {
+		$username = $this->ripper->getUsername();
+		$this->assertEquals('test', $username);
+
+		$this->ripper->setUsername('nottestanymore');
+		$username = $this->ripper->getUsername();
+		$this->assertFalse($username == 'test');
+		$this->assertEquals('nottestanymore', $username);
+	}
+
+	public function testSetPassword() {
+		$password = $this->ripper->getPassword();
+		$this->assertEquals('testpassword', $password);
+
+		$this->ripper->setPassword('nottestanymore');
+		$password = $this->ripper->getPassword();
+		$this->assertFalse($password == 'testpassword');
+		$this->assertEquals('nottestanymore', $password);
 	}
 }
