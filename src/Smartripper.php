@@ -8,7 +8,6 @@
 
 namespace BenSun\Smartripper;
 
-
 class Smartripper
 {
 	private $username;
@@ -26,6 +25,11 @@ class Smartripper
 
 	private $client;
 	private $cookie;
+	private $parser;
+
+	private $view_state = null;
+	private $event_validation = null;
+	private $csrf_token = null;
 
 	public function __construct($username, $password) {
 		$this->setUsername($username);
@@ -33,16 +37,41 @@ class Smartripper
 
 		$this->client = new \GuzzleHttp\Client(['cookies' => true]);
 		$this->cookie = new \GuzzleHttp\Cookie\CookieJar;
+		$this->parser = new \Sunra\PhpSimple\HtmlDomParser;
 	}
 
-	public function setUpWMATACookie() {
+	public function setUpWMATACookie()	{
 		$res = $this->client->request('GET', self::$login_url, ['cookies', $this->cookie]);
+
+		$doc = new \DOMDocument;
+		$doc->loadHTML($res->getBody()->getContents());
+
+		$this->setViewState($doc->getElementById('__VIEWSTATE')->getAttribute('value'));
+		$this->setEventValidation($doc->getElementById('__EVENTVALIDATION')->getAttribute('value'));
+		$this->setCsrfToken($doc->getElementById('__CSRFTOKEN')->getAttribute('value'));
+
 		return $res->getStatusCode();
 	}
 
 	public function logIntoWMATA() {
-		$res = $this->client->get(self::$login_url);
 
+		 $headers = ['referer' => self::$login_url];
+
+		$data = ['__CSRFTOKEN'=>$this->getCsrfToken(),
+			'__EVENTTARGET'=>'',
+			'__EVENTARGUMENT'=>'',
+			'__VIEWSTATE' => $this->getViewState(),
+			'__EVENTVALIDATION' => $this->getEventValidation(),
+			self::$username_field_name => $this->getUsername(),
+			self::$password_field_name => $this->getPassword(),
+			'ctl00$MainContent$btnSubmit.x'=>'74',
+			'ctl00$MainContent$btnSubmit.y'=>'14'];
+
+		$args = ['headers' => $headers,
+			'body' => http_build_query($data,'','&'),
+			'cookies' => $this->cookie];
+
+		$res = $this->client->post(self::$login_url, $args);
 		return $res->getBody()->getContents();
 	}
 
@@ -77,5 +106,54 @@ class Smartripper
 	{
 		$this->username = $username;
 	}
+
+	/**
+	 * @return mixed
+	 */
+	public function getViewState()
+	{
+		return $this->view_state;
+	}
+
+	/**
+	 * @param mixed $view_state
+	 */
+	public function setViewState($view_state)
+	{
+		$this->view_state = $view_state;
+	}
+
+	/**
+	 * @return mixed
+	 */
+	public function getEventValidation()
+	{
+		return $this->event_validation;
+	}
+
+	/**
+	 * @param mixed $event_validation
+	 */
+	public function setEventValidation($event_validation)
+	{
+		$this->event_validation = $event_validation;
+	}
+
+	/**
+	 * @return null
+	 */
+	public function getCsrfToken()
+	{
+		return $this->csrf_token;
+	}
+
+	/**
+	 * @param null $csrf_token
+	 */
+	public function setCsrfToken($csrf_token)
+	{
+		$this->csrf_token = $csrf_token;
+	}
+
 
 }
