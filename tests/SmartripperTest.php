@@ -30,7 +30,8 @@ class SmartripperTest extends \PHPUnit_Framework_TestCase
 		$this->ripper->setUpWMATACookie();
 		$res = $this->ripper->logIntoWMATA();
 
-		$this->assertTrue((strpos($res, 'Application Error') == false));
+//		$this->assertTrue((strpos($res, 'Application Error') == false));
+        $this->assertEquals([], $res);
 	}
 
 	public function testSetUpWMATACookie() {

@@ -41,8 +41,11 @@ class Smartripper
 	public function setUpWMATACookie()	{
 		$res = $this->client->request('GET', self::$login_url, ['cookies' => $this->cookie]);
 
-		$doc = new \DOMDocument;
-		$doc->loadHTML($res->getBody()->getContents());
+		$html = $res->getBody()->getContents();
+
+        $doc = new \DOMDocument;
+        libxml_use_internal_errors(true);
+		$doc->loadHTML($html);
 
 		$this->setViewState($doc->getElementById('__VIEWSTATE')->getAttribute('value'));
 		$this->setEventValidation($doc->getElementById('__EVENTVALIDATION')->getAttribute('value'));
@@ -53,7 +56,9 @@ class Smartripper
 
 	public function logIntoWMATA() {
 
-		$this->setUpWMATACookie();
+	    if (is_null($this->cookie)) {
+            $this->setUpWMATACookie();
+        }
 
 		$headers = [
 			'referer' => self::$login_url,
@@ -73,17 +78,49 @@ class Smartripper
 			'ctl00$ctl00$MainContent$MainContent$btnSubmit.y'=>'18'
 		];
 
-		$args = ['headers' => $headers,
+		$args = [
+            'headers' => $headers,
 			'referer' => true,
 			'verify' => false,
 			'allow_redirects' => true,
-			'debug' => true,
-			#'body' => http_build_query($data,'','&'),
 			'form_params' => $data,
-			'cookies' => $this->cookie];
+			'cookies' => $this->cookie
+        ];
 
 		$res = $this->client->post(self::$login_url, $args);
-		return $res->getBody()->getContents();
+
+        $html = $res->getBody()->getContents();
+
+        if (strpos($res, 'Application Error') == false) {
+            //return an error as login has failed
+        }
+
+        $doc = new \DOMDocument;
+        $doc->loadHTML($html);
+        $finder = new \DomXPath($doc);
+        $classname="cardInfo";
+        $nodes = $finder->query("//li[contains(@class, '$classname')]/a");
+
+        $cards = [];
+
+        if ($nodes->length) {
+            foreach ($nodes as $elem) {
+
+                $href = $elem->getAttribute('href');
+                $result = parse_url($href, PHP_URL_QUERY);
+                parse_str($result, $result);
+                $card_link_id = $result['card_id'];
+
+                $context = $elem->textContent;
+                $bracket_pos = strrpos($context, '(');
+                $card_serial_number = substr($context, $bracket_pos, (strlen($context) - $bracket_pos - 1));
+                $card_title = substr($context, 0, $bracket_pos);
+
+                $cards[] = new SmartripCard($card_serial_number, $card_title, $card_link_id);
+            }
+
+        }
+        return $cards;
 	}
 
 	/**
