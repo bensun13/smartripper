@@ -5,11 +5,9 @@ namespace BenSun\Smartripper;
 
 class SmartripCard
 {
-    public $link_id;
-
-    public $title;
-
-    public $serial_number;
+    private $link_id;
+    private $title;
+    private $serial_number;
 
     public function __construct($serial_number, $title, $link_id)
     {
@@ -18,5 +16,52 @@ class SmartripCard
         $this->serial_number = $serial_number;
     }
 
+	/**
+	 * @return mixed
+	 */
+	public function getLinkId()
+	{
+		return $this->link_id;
+	}
+
+	/**
+	 * @param mixed $link_id
+	 */
+	public function setLinkId($link_id)
+	{
+		$this->link_id = $link_id;
+	}
+
+	/**
+	 * @return mixed
+	 */
+	public function getTitle()
+	{
+		return $this->title;
+	}
+
+	/**
+	 * @param mixed $title
+	 */
+	public function setTitle($title)
+	{
+		$this->title = $title;
+	}
+
+	/**
+	 * @return mixed
+	 */
+	public function getSerialNumber()
+	{
+		return $this->serial_number;
+	}
+
+	/**
+	 * @param mixed $serial_number
+	 */
+	public function setSerialNumber($serial_number)
+	{
+		$this->serial_number = $serial_number;
+	}
 
 }

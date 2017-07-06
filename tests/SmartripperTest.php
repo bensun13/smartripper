@@ -1,14 +1,8 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: bsun
- * Date: 6/28/17
- * Time: 10:08 PM
- */
 
 namespace BenSun\Smartripper\Tests;
 
-use \BenSun\Smartripper\Smartripper;
+use \BenSun\Smartripper;
 
 /**
  * @coversDefaultClass \BenSun\Smartripper\Smartripper
@@ -18,7 +12,7 @@ class SmartripperTest extends \PHPUnit_Framework_TestCase
 	public $ripper;
 
 	public function setUp() {
-		$this->ripper = new Smartripper('test', 'testpassword');
+		$this->ripper = new Smartripper\Smartripper('test', 'testpassword');
 	}
 
 	public function testGetPassword() {
@@ -27,11 +21,26 @@ class SmartripperTest extends \PHPUnit_Framework_TestCase
 	}
 
 	public function testLogIntoWMATA() {
+
 		$this->ripper->setUpWMATACookie();
+
+		$body = "<li class=\"cardInfo \"><a href=\"../Card/CardSummary.aspx?card_id=test_card_id\">Test Title (test_serial_number)</a></li>";
+
+		$mock_client = $this->getMockBuilder('\GuzzleHttp\Client')
+			->setMethods(['post'])
+			->getMock();
+
+		$response = new \GuzzleHttp\Psr7\Response('200', [], $body);
+
+		$mock_client->method('post')->with($this->ripper::$login_url, $this->anything())->willReturn($response);
+
+		$this->ripper->client = $mock_client;
+
 		$res = $this->ripper->logIntoWMATA();
 
-//		$this->assertTrue((strpos($res, 'Application Error') == false));
-        $this->assertEquals([], $res);
+		$expected = [new Smartripper\SmartripCard('test_serial_number', 'Test Title', 'test_card_id')];
+
+        $this->assertEquals($expected, $res);
 	}
 
 	public function testSetUpWMATACookie() {

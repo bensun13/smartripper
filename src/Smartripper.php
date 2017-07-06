@@ -20,7 +20,8 @@ class Smartripper
 
 	public static $agent = 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/534.13 (KHTML, like Gecko) Chrome/9.0.597.98 Safari/534.13';
 
-	private $client;
+	public $client;
+
 	private $cookie = null;
 	private $parser;
 
@@ -88,8 +89,7 @@ class Smartripper
         ];
 
 		$res = $this->client->post(self::$login_url, $args);
-
-        $html = $res->getBody()->getContents();
+		$html = $res->getBody()->getContents();
 
         if (strpos($res, 'Application Error') == false) {
             //return an error as login has failed
@@ -113,8 +113,9 @@ class Smartripper
 
                 $context = $elem->textContent;
                 $bracket_pos = strrpos($context, '(');
-                $card_serial_number = substr($context, $bracket_pos, (strlen($context) - $bracket_pos - 1));
-                $card_title = substr($context, 0, $bracket_pos);
+                $card_serial_number = substr($context, ($bracket_pos + 1), (strlen($context) - $bracket_pos - 2));
+
+                $card_title = trim(substr($context, 0, $bracket_pos));
 
                 $cards[] = new SmartripCard($card_serial_number, $card_title, $card_link_id);
             }
