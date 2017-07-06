@@ -124,6 +124,18 @@ class Smartripper
         return $cards;
 	}
 
+	function fetchUsageData(SmartripCard $card, $month, $args) {
+		//fetch token first
+		$data = array('card_id' => $card_id, #SmarTrip Number
+			'period' => 'M', #M for month or D for Dates
+			'month'=> $month,
+			'transactionstatus' => 'Successful', #All or Successful
+			'orderby' => 'transactiondatetime', #transactiondatetime, operator, entrylocation, exitlocation, product
+			'ordertype'=>'',
+		);
+
+	}
+
 	/**
 	 * @return mixed
 	 */
