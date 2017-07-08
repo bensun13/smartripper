@@ -10,11 +10,9 @@ class SmartripCard
     private $serial_number;
     private $stored_value;
 
-	public static $smartrip_url = 'https://smartrip.wmata.com/Card/';
+    public static $card_summary_url = '/Card/CardSummary.aspx?';
 
-    public static $card_summary_url = 'CardSummary.aspx?';
-
-    public static $card_usage_url = 'CardUsageReport.aspx?';
+    public static $card_usage_url = '/Card/CardUsageReport.aspx?';
 
     public function __construct($serial_number, $title, $link_id)
     {
@@ -24,11 +22,11 @@ class SmartripCard
     }
 
     public function getSummaryUrl() {
-    	return self::$smartrip_url . self::$card_summary_url . http_build_query(['card_id' => $this->link_id]);
+    	return self::$card_summary_url . http_build_query(['card_id' => $this->link_id]);
 	}
 
 	public function getUsageUrl() {
-		return self::$smartrip_url . self::$card_usage_url . http_build_query(['card_id' => $this->link_id]);
+		return self::$card_usage_url . http_build_query(['card_id' => $this->link_id]);
 	}
 
 	/**

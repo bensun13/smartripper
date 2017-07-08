@@ -13,12 +13,15 @@ class Smartripper
 	private $username;
 	private $password;
 
-	public static $login_url = 'https://smartrip.wmata.com/Account/AccountLogin.aspx';
+	public static $base_uri = 'https://smartrip.wmata.com';
+	public static $login_url = '/Account/AccountLogin.aspx';
 
 	public static $username_field_name = 'ctl00$ctl00$MainContent$MainContent$txtUsername';
 	public static $password_field_name = 'ctl00$ctl00$MainContent$MainContent$txtPassword';
 
 	public static $agent = 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/534.13 (KHTML, like Gecko) Chrome/9.0.597.98 Safari/534.13';
+
+    public $is_logged_in = false;
 
 	public $client;
 
@@ -34,7 +37,7 @@ class Smartripper
 		$this->setUsername($username);
 		$this->setPassword($password);
 
-		$this->client = new \GuzzleHttp\Client(['cookies' => true]);
+		$this->client = new \GuzzleHttp\Client(['cookies' => true, 'base_uri' => self::$base_uri]);
 		$this->cookie = new \GuzzleHttp\Cookie\CookieJar();
 		$this->parser = new \Sunra\PhpSimple\HtmlDomParser;
 	}
@@ -57,7 +60,7 @@ class Smartripper
 
 	public function logIntoWMATA() {
 
-	    if (is_null($this->cookie)) {
+	    if (!$this->cookie->count()) {
             $this->setUpWMATACookie();
         }
 
@@ -75,8 +78,8 @@ class Smartripper
 			'__EVENTVALIDATION' => $this->getEventValidation(),
 			self::$username_field_name => $this->getUsername(),
 			self::$password_field_name => $this->getPassword(),
-			'ctl00$ctl00$MainContent$MainContent$btnSubmit.x'=>'73',
-			'ctl00$ctl00$MainContent$MainContent$btnSubmit.y'=>'18'
+            'ctl00$ctl00$MainContent$MainContent$btnSubmit.x'=>'73',
+            'ctl00$ctl00$MainContent$MainContent$btnSubmit.y'=>'18'
 		];
 
 		$args = [
@@ -91,8 +94,10 @@ class Smartripper
 		$res = $this->client->post(self::$login_url, $args);
 		$html = $res->getBody()->getContents();
 
-        if (strpos($res, 'Application Error') == false) {
+        if (strpos($html, 'Application Error') !== false) {
             //return an error as login has failed
+            echo "Failed Login";
+            return [];
         }
 
         $doc = new \DOMDocument;
@@ -104,6 +109,9 @@ class Smartripper
         $cards = [];
 
         if ($nodes->length) {
+
+            $this->is_logged_in = true;
+
             foreach ($nodes as $elem) {
 
                 $href = $elem->getAttribute('href');
@@ -125,16 +133,65 @@ class Smartripper
 	}
 
 	function fetchUsageData(SmartripCard $card, $month, $args) {
-		//fetch token first
-		$data = array('card_id' => $card_id, #SmarTrip Number
-			'period' => 'M', #M for month or D for Dates
-			'month'=> $month,
-			'transactionstatus' => 'Successful', #All or Successful
-			'orderby' => 'transactiondatetime', #transactiondatetime, operator, entrylocation, exitlocation, product
-			'ordertype'=>'',
-		);
+
+	    if (!$this->isLoggedIn()) {
+	        $this->logIntoWMATA();
+        }
+
+        if ($this->isLoggedIn()) {
+
+            $url_parts = parse_url($card->getSummaryUrl());
+            $url = $card->getUsageUrl() . '&back_url=' . urlencode($url_parts['path'] . '?' . $url_parts['query']);
+
+            $res = $this->client->get($url, ['cookies' => $this->cookie]);
+            $html = $res->getBody()->getContents();
+
+            $doc = new \DOMDocument;
+            $doc->loadHTML($html);
+
+            $headers = [
+                'referer' => self::$base_uri . $url,
+            ];
+
+            $data = [
+                '__CSRFTOKEN' => $this->getCsrfToken($doc),
+                '__EVENTTARGET' => '',
+                '__EVENTARGUMENT' => '',
+                '__VIEWSTATE' => $this->getViewState($doc),
+                '__VIEWSTATEGENERATOR' => $this->getViewStateGenerator($doc),
+                '__EVENTVALIDATION' => $this->getEventValidation($doc),
+                'ctl00$ctl00$MainContent$MainContent$grpPeriod' => 'rbByMonth',
+                'ctl00$ctl00$MainContent$MainContent$ddlMonth' => $month,
+                'ctl00$ctl00$MainContent$MainContent$btnSubmit.x' => 47,
+                'ctl00$ctl00$MainContent$MainContent$btnSubmit.y' => 8
+                ];
+
+            $args = [
+                'headers' => $headers,
+                'verify' => true,
+                'allow_redirects' => ['track_redirects' => true],
+                'form_params' => $data,
+                'cookies' => $this->cookie
+            ];
+
+            $res = $this->client->post($url, $args);
+            $response_html = $res->getBody()->getContents();
+
+            if (strpos($response_html, "Application Error") !== false) {
+                echo "Failed to fetch token<br>";
+
+            } else {
+                echo $response_html;
+            }
+
+            var_dump($res->getHeader(\GuzzleHttp\RedirectMiddleware::HISTORY_HEADER));
+        }
 
 	}
+
+    public function isLoggedIn() {
+	    return $this->is_logged_in;
+    }
 
 	/**
 	 * @return mixed
@@ -171,8 +228,11 @@ class Smartripper
 	/**
 	 * @return mixed
 	 */
-	public function getViewState()
+	public function getViewState($doc = null)
 	{
+        if (!is_null($doc) && $doc instanceof \DOMDocument) {
+            $this->setCsrfToken($doc->getElementById('__VIEWSTATE')->getAttribute('value'));
+        }
 		return $this->view_state;
 	}
 
@@ -187,8 +247,11 @@ class Smartripper
 	/**
 	 * @return mixed
 	 */
-	public function getEventValidation()
+	public function getEventValidation($doc = null)
 	{
+        if (!is_null($doc) && $doc instanceof \DOMDocument) {
+            $this->setCsrfToken($doc->getElementById('__EVENTVALIDATION')->getAttribute('value'));
+        }
 		return $this->event_validation;
 	}
 
@@ -203,8 +266,11 @@ class Smartripper
 	/**
 	 * @return null
 	 */
-	public function getCsrfToken()
+	public function getCsrfToken($doc = null)
 	{
+        if (!is_null($doc) && $doc instanceof \DOMDocument) {
+            $this->setCsrfToken($doc->getElementById('__CSRFTOKEN')->getAttribute('value'));
+        }
 		return $this->csrf_token;
 	}
 
@@ -219,8 +285,11 @@ class Smartripper
 	/**
 	 * @return null
 	 */
-	public function getViewStateGenerator()
+	public function getViewStateGenerator($doc = null)
 	{
+        if (!is_null($doc) && $doc instanceof \DOMDocument) {
+            $this->setCsrfToken($doc->getElementById('__VIEWSTATEGENERATOR')->getAttribute('value'));
+        }
 		return $this->view_state_generator;
 	}
 
@@ -231,6 +300,5 @@ class Smartripper
 	{
 		$this->view_state_generator = $view_state_generator;
 	}
-
 
 }
